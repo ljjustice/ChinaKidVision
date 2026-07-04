@@ -1,0 +1,78 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>童眼看中国</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="side-nav" aria-label="功能导航">
+        <div class="brand">
+          <div class="brand-mark">童</div>
+          <div>
+            <strong>童眼看中国</strong>
+            <span>旅行向导</span>
+          </div>
+        </div>
+        <button class="nav-item active" type="button" aria-label="地图"><span>图</span><small>地图</small></button>
+        <button class="nav-item" type="button" aria-label="学习"><span>书</span><small>学习</small></button>
+        <button class="nav-item" type="button" aria-label="成就"><span>星</span><small>成就</small></button>
+        <button class="nav-item" type="button" aria-label="设置"><span>设</span><small>设置</small></button>
+      </aside>
+
+      <section class="map-page" aria-labelledby="page-title">
+        <header class="top-actions">
+          <h1 id="page-title">中国地图</h1>
+        </header>
+
+        <section class="map-stage">
+          <div class="map-card">
+            <div class="map-title">中国地图</div>
+            <div id="chinaMap" class="china-map" role="img" aria-label="中国省份互动地图"></div>
+            <div id="mapError" class="map-error" hidden>地图资源加载失败，请检查 vendor 目录中的地图文件。</div>
+            <div class="guide">
+              <div class="guide-bubble">点击省份，<br />去旅行吧！</div>
+              <div class="guide-kid" aria-hidden="true">Hi</div>
+            </div>
+            <button id="provListToggle" class="prov-list-toggle" type="button" aria-label="省份列表">📋</button>
+          </div>
+          <aside id="provListPanel" class="prov-list-panel" aria-label="省份列表">
+            <div class="prov-list-header">
+              <strong>选择省份</strong>
+              <button id="provListClose" type="button" aria-label="关闭列表">✕</button>
+            </div>
+            <div id="provListContent" class="prov-list-content"></div>
+          </aside>
+        </section>
+      </section>
+    </main>
+
+    <div id="provinceModal" class="modal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <section class="province-card" role="dialog" aria-modal="true" aria-labelledby="provinceName">
+        <button class="close-btn" type="button" aria-label="关闭" data-close>×</button>
+        <header class="province-header">
+          <div id="provinceOutline" class="province-outline"></div>
+          <div class="province-title-group">
+            <h2 id="provinceName">四川省 <small class="province-abbr">川</small></h2>
+            <p id="provinceEnglish">Sichuan</p>
+          </div>
+          <button id="voiceBtn" class="voice-btn" type="button" aria-label="播放省份介绍">🔊</button>
+        </header>
+        <nav class="tab-bar">
+          <button class="tab-btn active" data-tab="animals" type="button">🐾 动物</button>
+          <button class="tab-btn" data-tab="foods" type="button">🍜 美食</button>
+          <button class="tab-btn" data-tab="places" type="button">🏔️ 景点</button>
+          <button class="tab-btn" data-tab="cities" type="button">🏙️ 城市</button>
+        </nav>
+        <div id="tabContent" class="tab-content"></div>
+      </section>
+    </div>
+
+    <script src="./vendor/echarts.min.js" charset="utf-8"></script>
+    <script src="./vendor/china-geo.js" charset="utf-8"></script>
+    <script src="./app.js" charset="utf-8"></script>
+  </body>
+</html>

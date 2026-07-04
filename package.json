@@ -1,0 +1,19 @@
+{
+  "name": "chinakidvision",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.0",
+    "edge-tts-node": "^1.5.7",
+    "sharp": "^0.35.3"
+  }
+}

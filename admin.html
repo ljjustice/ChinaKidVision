@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>童眼看中国 - 管理后台</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --ink: #245f72;
+      --bg: #f9f8ef;
+      --card: #ffffff;
+      --border: #e0e8e8;
+      --accent: #6bbcd0;
+      --accent-dark: #3a8fa3;
+      --danger: #c71921;
+      --success: #4ec49c;
+      --warning: #f0a05a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; color: var(--ink); background: var(--bg); min-height: 100vh; }
+
+    .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-box { width: 380px; padding: 40px 36px; background: var(--card); border-radius: 20px; box-shadow: 0 12px 40px rgba(36,95,114,.12); }
+    .login-box h1 { font-size: 24px; margin-bottom: 8px; }
+    .login-box p { font-size: 14px; color: #6a8a96; margin-bottom: 24px; }
+    .login-box label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    .login-box input { width: 100%; padding: 10px 14px; border: 2px solid var(--border); border-radius: 10px; font-size: 15px; margin-bottom: 16px; outline: none; transition: border-color .2s; }
+    .login-box input:focus { border-color: var(--accent); }
+    .login-box button { width: 100%; padding: 12px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; transition: background .2s; }
+    .login-box button:hover { background: var(--accent-dark); }
+    .login-error { color: var(--danger); font-size: 13px; margin-bottom: 12px; min-height: 18px; }
+
+    .app { display: none; }
+    .app.active { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+    .sidebar { background: var(--card); border-right: 2px solid var(--border); padding: 20px 16px; }
+    .sidebar h2 { font-size: 18px; margin-bottom: 4px; }
+    .sidebar .sub { font-size: 12px; color: #6a8a96; margin-bottom: 20px; }
+    .sidebar .prov-list { list-style: none; max-height: calc(100vh - 160px); overflow-y: auto; }
+    .sidebar .prov-item { padding: 8px 12px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s; display: flex; align-items: center; gap: 8px; }
+    .sidebar .prov-item:hover { background: #eef7f7; }
+    .sidebar .prov-item.active { background: var(--accent); color: #fff; }
+    .sidebar .prov-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; border: 2px solid rgba(0,0,0,.1); }
+    .sidebar .logout-btn { margin-top: 16px; width: 100%; padding: 8px; border: 2px solid var(--border); border-radius: 10px; background: transparent; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink); }
+    .sidebar .logout-btn:hover { border-color: var(--danger); color: var(--danger); }
+
+    .main { padding: 24px 32px; overflow-y: auto; }
+    .main-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .main-header h1 { font-size: 28px; }
+    .main-header .en { font-size: 16px; color: #6a8a96; font-weight: 700; }
+
+    .cat-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .cat-tab { padding: 8px 20px; border: 2px solid var(--border); border-radius: 12px; background: transparent; font-size: 14px; font-weight: 800; cursor: pointer; transition: all .2s; }
+    .cat-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .cat-tab:hover:not(.active) { background: #eef7f7; }
+
+    .items-table { width: 100%; border-collapse: collapse; }
+    .items-table th { text-align: left; font-size: 12px; color: #6a8a96; padding: 8px 12px; border-bottom: 2px solid var(--border); }
+    .items-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+    .items-table tr:hover td { background: #f7fbfb; }
+    .items-table .img-cell { width: 60px; text-align: center; }
+    .items-table .img-cell img { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; border: 2px solid var(--border); }
+    .items-table .img-cell .no-img { font-size: 24px; opacity: .4; }
+    .items-table .name-cell { font-weight: 700; }
+    .items-table .en-cell { color: #6a8a96; font-size: 13px; }
+    .items-table .note-cell { max-width: 200px; }
+
+    .btn-sm { padding: 5px 12px; border: 0; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; transition: background .2s; }
+    .btn-edit { background: #e0f0f5; color: var(--ink); }
+    .btn-edit:hover { background: var(--accent); color: #fff; }
+    .btn-del { background: #fce8e8; color: var(--danger); }
+    .btn-del:hover { background: var(--danger); color: #fff; }
+    .btn-add { padding: 8px 20px; border: 2px dashed var(--accent); border-radius: 12px; background: transparent; font-size: 14px; font-weight: 800; color: var(--accent); cursor: pointer; margin-top: 12px; }
+    .btn-add:hover { background: #eef7f7; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 100; place-items: center; }
+    .modal-overlay.open { display: grid; }
+    .modal-box { width: min(94vw, 480px); background: var(--card); border-radius: 20px; padding: 28px; box-shadow: 0 20px 50px rgba(0,0,0,.15); }
+    .modal-box h2 { font-size: 20px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px 12px; border: 2px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; transition: border-color .2s; }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--accent); }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-group select { background: #fff; }
+
+    .img-upload-row { display: flex; gap: 12px; align-items: center; }
+    .img-upload-row input[type="file"] { flex: 1; padding: 6px; border: 2px dashed var(--border); border-radius: 10px; font-size: 13px; }
+    .img-preview { width: 64px; height: 64px; border-radius: 10px; object-fit: cover; border: 2px solid var(--border); flex-shrink: 0; display: none; }
+    .img-preview.show { display: block; }
+    .img-upload-btn { padding: 8px 16px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; flex-shrink: 0; }
+    .img-upload-btn:hover { background: var(--accent-dark); }
+    .img-upload-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-actions button { flex: 1; padding: 10px; border: 0; border-radius: 12px; font-size: 15px; font-weight: 800; cursor: pointer; }
+    .btn-save { background: var(--accent); color: #fff; }
+    .btn-save:hover { background: var(--accent-dark); }
+    .btn-cancel { background: #eef0f0; color: var(--ink); }
+    .btn-cancel:hover { background: #dde0e0; }
+    .previewable { cursor: zoom-in; transition: transform .15s; }
+    .previewable:hover { transform: scale(1.1); }
+    .img-preview-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; cursor: zoom-out; }
+    .img-preview-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+  </style>
+</head>
+<body>
+
+<div id="loginWrap" class="login-wrap">
+  <div class="login-box">
+    <h1>童眼看中国</h1>
+    <p>管理后台 - 请登录</p>
+    <div id="loginError" class="login-error"></div>
+    <label>邮箱</label>
+    <input id="loginEmail" type="email" placeholder="admin@example.com" />
+    <label>密码</label>
+    <input id="loginPass" type="password" placeholder="请输入密码" />
+    <button id="loginBtn">登 录</button>
+  </div>
+</div>
+
+<div id="appWrap" class="app">
+  <aside class="sidebar">
+    <h2>省份列表</h2>
+    <div class="sub">点击选择省份进行编辑</div>
+    <ul id="provList" class="prov-list"></ul>
+    <button id="logoutBtn" class="logout-btn">退出登录</button>
+  </aside>
+  <div class="main">
+    <div id="emptyState" style="display:flex;align-items:center;justify-content:center;height:60vh;color:#6a8a96;font-size:18px;">← 请从左侧选择一个省份</div>
+    <div id="provEditor" style="display:none;">
+      <div class="main-header">
+        <h1 id="edName"></h1>
+        <span id="edEn" class="en"></span>
+      </div>
+      <div class="cat-tabs" id="catTabs">
+        <button class="cat-tab active" data-cat="animals">🐾 动物</button>
+        <button class="cat-tab" data-cat="foods">🍜 美食</button>
+        <button class="cat-tab" data-cat="places">🏔️ 景点</button>
+        <button class="cat-tab" data-cat="cities">🏙️ 城市</button>
+      </div>
+      <table class="items-table">
+        <thead>
+          <tr><th>图片</th><th>名称</th><th>英文名</th><th>描述</th><th>排序</th><th>操作</th></tr>
+        </thead>
+        <tbody id="itemsBody"></tbody>
+      </table>
+      <button id="addItemBtn" class="btn-add">+ 添加条目</button>
+    </div>
+  </div>
+</div>
+
+<div id="itemModal" class="modal-overlay">
+  <div class="modal-box">
+    <h2 id="modalTitle">添加条目</h2>
+    <div class="form-group"><label>名称</label><input id="fName" /></div>
+    <div class="form-group"><label>英文名</label><input id="fEnglish" /></div>
+    <div class="form-group"><label>描述</label><textarea id="fNote"></textarea></div>
+    <div class="form-group">
+      <label>图片</label>
+      <div class="img-upload-row">
+        <input id="fImageFile" type="file" accept="image/*" />
+        <img id="fImagePreview" class="img-preview" />
+        <button id="uploadBtn" class="img-upload-btn">上传</button>
+      </div>
+      <input id="fImageUrl" placeholder="或输入图片网址 (http://...)" style="margin-top:8px;" />
+    </div>
+    <div class="form-group"><label>排序</label><input id="fSort" type="number" value="0" /></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="modalCancel">取消</button>
+      <button class="btn-save" id="modalSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="imgPreview" class="img-preview-overlay" style="display:none;">
+  <img id="imgPreviewSrc" />
+</div>
+
+<script>
+const SUPABASE_URL = 'https://xnkjdmvbeqfqsoskidoh.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhua2pkbXZiZXFmcXNvc2tpZG9oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMjcwMjcsImV4cCI6MjA5ODYwMzAyN30.GVkOadt_o0oqrZRSIhz0UZUaKoZGkwDi3iTMa0Y1n28';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let provinces = [];
+let items = [];
+let currentProv = null;
+let currentCat = 'animals';
+let editingItem = null;
+let uploadedImageUrl = '';
+
+const $ = id => document.getElementById(id);
+
+// Image upload handler
+$('uploadBtn').addEventListener('click', async () => {
+  const file = $('fImageFile').files[0];
+  if (!file) { alert('请先选择图片文件'); return; }
+  $('uploadBtn').disabled = true;
+  $('uploadBtn').textContent = '上传中...';
+
+  const dir = currentProv ? `${currentProv.name}/${currentCat}` : 'misc';
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
+    }
+    const base64 = btoa(binary);
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-file-name': encodeURIComponent(file.name), 'x-file-dir': encodeURIComponent(dir) },
+      body: JSON.stringify({ data: base64 })
+    });
+    const data = await res.json();
+    if (data.url) {
+      uploadedImageUrl = data.url;
+      $('fImageUrl').value = data.url;
+      showPreview(data.url);
+    } else {
+      alert('上传失败');
+    }
+  } catch (e) {
+    alert('上传失败: ' + e.message);
+  }
+  $('uploadBtn').disabled = false;
+  $('uploadBtn').textContent = '上传';
+});
+
+function showPreview(url) {
+  const preview = $('fImagePreview');
+  if (url) {
+    preview.src = url;
+    preview.classList.add('show');
+  } else {
+    preview.classList.remove('show');
+  }
+}
+
+async function loadProvinces() {
+  const { data, error } = await sb.from('provinces').select('*').order('sort_order');
+  if (error) { console.error(error); return; }
+  provinces = data;
+  renderProvList();
+}
+
+async function loadItems() {
+  const { data, error } = await sb.from('items').select('*').order('sort_order');
+  if (error) { console.error(error); return; }
+  items = data;
+  renderItems();
+}
+
+function renderProvList() {
+  $('provList').innerHTML = provinces.map(p =>
+    `<li class="prov-item${currentProv && currentProv.name === p.name ? ' active' : ''}" data-name="${p.name}">
+      <span class="prov-dot" style="background:${p.color || '#ccc'}"></span>
+      ${p.name}
+    </li>`
+  ).join('');
+  document.querySelectorAll('.prov-item').forEach(el => {
+    el.addEventListener('click', () => selectProvince(el.dataset.name));
+  });
+}
+
+function selectProvince(name) {
+  currentProv = provinces.find(p => p.name === name);
+  currentCat = 'animals';
+  renderProvList();
+  renderEditor();
+}
+
+function renderEditor() {
+  if (!currentProv) return;
+  $('emptyState').style.display = 'none';
+  $('provEditor').style.display = 'block';
+  $('edName').textContent = currentProv.full_name;
+  $('edEn').textContent = currentProv.english;
+  document.querySelectorAll('.cat-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === currentCat));
+  renderItems();
+}
+
+function renderItems() {
+  if (!currentProv) return;
+  const filtered = items.filter(i => i.province_name === currentProv.name && i.category === currentCat);
+  $('itemsBody').innerHTML = filtered.map(item => {
+    const imgHtml = item.image_url
+      ? `<img src="${item.image_url}" alt="${item.name}" class="previewable" />`
+      : `<span class="no-img">📷</span>`;
+    return `<tr>
+      <td class="img-cell">${imgHtml}</td>
+      <td class="name-cell">${item.name}</td>
+      <td class="en-cell">${item.english}</td>
+      <td class="note-cell">${item.note}</td>
+      <td>${item.sort_order}</td>
+      <td>
+        <button class="btn-sm btn-edit" data-id="${item.id}">编辑</button>
+        <button class="btn-sm btn-del" data-id="${item.id}">删除</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.querySelectorAll('.btn-edit').forEach(b => b.addEventListener('click', () => openEditItem(Number(b.dataset.id))));
+  document.querySelectorAll('.btn-del').forEach(b => b.addEventListener('click', () => deleteItem(Number(b.dataset.id))));
+  document.querySelectorAll('.previewable').forEach(img => img.addEventListener('click', (e) => {
+    e.stopPropagation();
+    $('imgPreviewSrc').src = img.src;
+    $('imgPreview').style.display = 'flex';
+  }));
+}
+
+document.querySelectorAll('.cat-tab').forEach(t => t.addEventListener('click', () => {
+  currentCat = t.dataset.cat;
+  document.querySelectorAll('.cat-tab').forEach(x => x.classList.toggle('active', x === t));
+  renderItems();
+}));
+
+$('addItemBtn').addEventListener('click', () => {
+  editingItem = null;
+  uploadedImageUrl = '';
+  $('modalTitle').textContent = '添加条目';
+  $('fName').value = '';
+  $('fEnglish').value = '';
+  $('fNote').value = '';
+  $('fImageUrl').value = '';
+  $('fImageFile').value = '';
+  $('fSort').value = 0;
+  showPreview('');
+  $('itemModal').classList.add('open');
+});
+
+function openEditItem(id) {
+  editingItem = items.find(i => i.id === id);
+  if (!editingItem) return;
+  $('modalTitle').textContent = '编辑条目';
+  $('fName').value = editingItem.name;
+  $('fEnglish').value = editingItem.english;
+  $('fNote').value = editingItem.note;
+  $('fImageUrl').value = editingItem.image_url || '';
+  uploadedImageUrl = editingItem.image_url || '';
+  $('fImageFile').value = '';
+  $('fSort').value = editingItem.sort_order;
+  if (editingItem.image_url) showPreview(editingItem.image_url);
+  else showPreview('');
+  $('itemModal').classList.add('open');
+}
+
+$('modalCancel').addEventListener('click', () => $('itemModal').classList.remove('open'));
+
+$('modalSave').addEventListener('click', async () => {
+  const row = {
+    province_name: currentProv.name,
+    category: currentCat,
+    name: $('fName').value.trim(),
+    english: $('fEnglish').value.trim(),
+    note: $('fNote').value.trim(),
+    image_url: $('fImageUrl').value.trim() || uploadedImageUrl,
+    sort_order: Number($('fSort').value) || 0
+  };
+  if (!row.name) { alert('名称不能为空'); return; }
+
+  const isNew = !editingItem;
+  const saveBtn = $('modalSave');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '保存中...';
+
+  try {
+    let error;
+    if (editingItem) {
+      ({ error } = await sb.from('items').update(row).eq('id', editingItem.id));
+    } else {
+      ({ error } = await sb.from('items').insert(row));
+    }
+    if (error) { alert('保存失败: ' + error.message); return; }
+
+    const name = row.name;
+    const en = row.english;
+    const note = row.note;
+    const cat = row.category;
+    const safeName = name.replace(/[/\\]/g, '_');
+
+    saveBtn.textContent = '生成语音和配图中...';
+
+    const voiceText = [name, en, note].filter(Boolean).join('，……，');
+    const catLabelMap = { animals: '特色动物', foods: '特色美食', places: '著名景点', cities: '代表城市' };
+    const catLabel = catLabelMap[cat] || '';
+    const provName = currentProv ? currentProv.full_name : '';
+    const promptMap = {
+      animals: `中国${provName}的${catLabel}${name}（${en}），${note}，在自然栖息地中，真实摄影，高清`,
+      foods: `中国${provName}的${catLabel}${name}（${en}），${note}，中餐美食特写摄影，真实摄影，高清`,
+      places: `中国${provName}的${catLabel}${name}（${en}），${note}，风景摄影，真实摄影，高清`,
+      cities: `中国${provName}的${catLabel}${name}（${en}），${note}，城市天际线，真实摄影，高清`
+    };
+    const prompt = promptMap[cat] || `中国${provName}${name}，真实摄影，高清`;
+
+    const tasks = [];
+
+    tasks.push(
+      fetch('/api/generate-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: voiceText, filename: safeName + '.mp3', dir: 'items' })
+      }).then(r => r.json()).then(d => { if (d.url) console.log('Voice:', d.url); })
+        .catch(e => console.warn('Voice failed:', e))
+    );
+
+    if (!row.image_url) {
+      tasks.push(
+        fetch('/api/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, category: cat, filename: safeName })
+        }).then(r => r.json()).then(async d => {
+          if (d.url) {
+            await loadItems();
+            const latest = items.find(i => i.name === name && i.category === cat && i.province_name === row.province_name);
+            if (latest) await sb.from('items').update({ image_url: d.url }).eq('id', latest.id);
+          }
+        }).catch(e => console.warn('Image failed:', e))
+      );
+    }
+
+    await Promise.all(tasks);
+
+    $('itemModal').classList.remove('open');
+    await loadItems();
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '保存';
+  }
+});
+
+async function deleteItem(id) {
+  if (!confirm('确定删除？')) return;
+  const item = items.find(i => i.id === id);
+  const { error } = await sb.from('items').delete().eq('id', id);
+  if (error) { alert('删除失败: ' + error.message); return; }
+  await loadItems();
+}
+
+$('imgPreview').addEventListener('click', () => { $('imgPreview').style.display = 'none'; });
+
+$('loginBtn').addEventListener('click', async () => {
+  const email = $('loginEmail').value.trim();
+  const pass = $('loginPass').value;
+  if (!email || !pass) { $('loginError').textContent = '请输入邮箱和密码'; return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { $('loginError').textContent = error.message; return; }
+  showApp();
+});
+
+$('logoutBtn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  $('appWrap').classList.remove('active');
+  $('loginWrap').style.display = 'flex';
+});
+
+function showApp() {
+  $('loginWrap').style.display = 'none';
+  $('appWrap').classList.add('active');
+  loadProvinces();
+  loadItems();
+}
+
+sb.auth.getSession().then(({ data: { session } }) => {
+  if (session) showApp();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+.env
+.vercel/
+.merkle-snapshot.json
+images/
+voices/
+youhou.js
+.idea/
+.codeartsdoer/

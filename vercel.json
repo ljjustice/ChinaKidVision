@@ -1,0 +1,9 @@
+{
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/storage/v1/object/public/:bucket/:path*",
+      "destination": "https://xnkjdmvbeqfqsoskidoh.supabase.co/storage/v1/object/public/:bucket/:path*"
+    }
+  ]
+}

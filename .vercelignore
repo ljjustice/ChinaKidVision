@@ -1,0 +1,12 @@
+node_modules/
+.env
+.vercel/
+.merkle-snapshot.json
+youhou.js
+server.js
+images/
+voices/
+migrate-to-storage.js
+update-db-urls.js
+.codeartsdoer/
+.idea/
