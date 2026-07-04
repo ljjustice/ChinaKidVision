@@ -146,7 +146,6 @@ function renderTabContent(tabKey) {
     const name = item[0], en = item[1], note = item[2] || "", imageUrl = item[3] || "", voiceUrl = item[4] || "";
     const onclick = `onclick="speakItem('${name.replace(/'/g,"\\'")}','${en.replace(/'/g,"\\'")}','${voiceUrl.replace(/'/g,"\\'")}')"`;
     const mediaHtml = imageUrl
-    const mediaHtml = imageUrl
       ? `<div class="card-img-wrap"><img class="card-img" src="${imageUrl}" alt="${name}" onerror="this.parentElement.innerHTML='🖼️';this.parentElement.className='card-emoji'" /></div>`
       : `<div class="card-emoji">🖼️</div>`;
     return `<article class="feature-card ${cls}" ${onclick}>${mediaHtml}<div class="card-info"><h3>${name} <small>${en}</small></h3>${note ? `<p>${note}</p>` : ""}</div></article>`;
