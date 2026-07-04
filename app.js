@@ -50,7 +50,7 @@ async function loadData() {
   items.forEach(item => {
     const p = provinceDetails[item.province_name];
     if (p && p[item.category]) {
-      p[item.category].push([item.name, item.english, item.note, item.image_url || ""]);
+      p[item.category].push([item.name, item.english, item.note, item.image_url || "", item.voice_url || ""]);
     }
   });
 }
@@ -127,7 +127,13 @@ function buildProvinceSvg(name) {
   });
   const idx = Object.keys(provinceDetails).indexOf(shortName);
   const color = palette[idx >= 0 ? idx % palette.length : 0];
-  return `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><path d="${pathD}" fill="${color}" stroke="#4d5963" stroke-width="2" stroke-linejoin="round"/></svg>`;
+  const svgStr = `<svg viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><path d="${pathD}" fill="${color}" stroke="#4d5963" stroke-width="2" stroke-linejoin="round"/></svg>`;
+  const img = document.createElement("img");
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
+  img.alt = shortName;
+  img.style.maxWidth = "100%";
+  img.style.maxHeight = "100%";
+  return img;
 }
 
 function renderTabContent(tabKey) {
@@ -137,8 +143,9 @@ function renderTabContent(tabKey) {
   const cls = classMap[tabKey] || "food";
   if (items.length === 0) { fields.tabContent.innerHTML = ""; return; }
   fields.tabContent.innerHTML = items.map((item) => {
-    const name = item[0], en = item[1], note = item[2] || "", imageUrl = item[3] || "";
-    const onclick = `onclick="speakItem('${name.replace(/'/g,"\\'")}','${en.replace(/'/g,"\\'")}')"`;
+    const name = item[0], en = item[1], note = item[2] || "", imageUrl = item[3] || "", voiceUrl = item[4] || "";
+    const onclick = `onclick="speakItem('${name.replace(/'/g,"\\'")}','${en.replace(/'/g,"\\'")}','${voiceUrl.replace(/'/g,"\\'")}')"`;
+    const mediaHtml = imageUrl
     const mediaHtml = imageUrl
       ? `<div class="card-img-wrap"><img class="card-img" src="${imageUrl}" alt="${name}" onerror="this.parentElement.innerHTML='🖼️';this.parentElement.className='card-emoji'" /></div>`
       : `<div class="card-emoji">🖼️</div>`;
@@ -151,7 +158,8 @@ function openProvinceByName(name) {
   const detail = getProvinceDetail(name);
   currentDetail = detail;
   currentTab = "animals";
-  fields.provinceOutline.innerHTML = buildProvinceSvg(name);
+  fields.provinceOutline.innerHTML = "";
+  fields.provinceOutline.appendChild(buildProvinceSvg(name));
   fields.provinceName.innerHTML = `${detail.fullName} <small class="province-abbr">${PROVINCE_ABBR[shortName] || ""}</small>`;
   fields.provinceEnglish.textContent = detail.english;
   document.querySelectorAll(".tab-btn").forEach((btn) => {
@@ -282,16 +290,21 @@ function speakWithChildVoice(text, rate) {
 
 function speakCurrentProvince() {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-  const shortName = normalizeProvinceName(fields.provinceName.textContent);
-  const audio = new Audio(`${VOICES_BASE}${b64url(shortName)}.mp3`);
+  const shortName = currentDetail ? normalizeProvinceName(Object.keys(provinceDetails).find(k => provinceDetails[k] === currentDetail) || "") : "";
+  const audio = new Audio();
+  audio.preload = "auto";
+  audio.src = `${VOICES_BASE}${b64url(shortName)}.mp3`;
   currentAudio = audio;
-  audio.play().catch(() => {
-    const name = currentDetail ? currentDetail.fullName : fields.provinceName.textContent;
-    speakWithChildVoice(name, 0.7);
-  });
+  const playPromise = audio.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      const name = currentDetail ? currentDetail.fullName : fields.provinceName.textContent;
+      speakWithChildVoice(name, 0.7);
+    });
+  }
 }
 
-function speakItem(name, english) {
+function speakItem(name, english, voiceUrl) {
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   const detail = currentDetail;
   const note = detail ? (detail[currentTab] || []).find(it => it[0] === name) : null;
@@ -300,10 +313,19 @@ function speakItem(name, english) {
   if (english) parts.push(english);
   if (noteText) parts.push(noteText);
   const textWithPauses = parts.join("，……，");
-  const safe = name.replace(/[/\\]/g, "_");
-  const audio = new Audio(`${VOICES_BASE}items/${b64url(safe)}.mp3`);
-  currentAudio = audio;
-  audio.play().catch(() => speakWithChildVoice(textWithPauses, 0.7));
+
+  if (voiceUrl) {
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.src = voiceUrl;
+    currentAudio = audio;
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(() => speakWithChildVoice(textWithPauses, 0.7));
+    }
+  } else {
+    speakWithChildVoice(textWithPauses, 0.7);
+  }
 }
 
 document.querySelectorAll("[data-close]").forEach((element) => element.addEventListener("click", closeProvince));

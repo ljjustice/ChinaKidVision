@@ -166,6 +166,14 @@
       </div>
       <input id="fImageUrl" placeholder="或输入图片网址 (http://...)" style="margin-top:8px;" />
     </div>
+    <div class="form-group">
+      <label>语音 (mp3)</label>
+      <div class="img-upload-row">
+        <input id="fVoiceFile" type="file" accept="audio/mpeg,.mp3" />
+        <button id="voiceUploadBtn" class="img-upload-btn">上传</button>
+      </div>
+      <input id="fVoiceUrl" placeholder="或输入语音网址 (http://...)" style="margin-top:8px;" />
+    </div>
     <div class="form-group"><label>排序</label><input id="fSort" type="number" value="0" /></div>
     <div class="modal-actions">
       <button class="btn-cancel" id="modalCancel">取消</button>
@@ -190,6 +198,7 @@ let currentProv = null;
 let currentCat = 'animals';
 let editingItem = null;
 let uploadedImageUrl = '';
+let uploadedVoiceUrl = '';
 
 const $ = id => document.getElementById(id);
 
@@ -231,6 +240,42 @@ $('uploadBtn').addEventListener('click', async () => {
   }
   $('uploadBtn').disabled = false;
   $('uploadBtn').textContent = '上传';
+});
+
+// Voice upload handler
+$('voiceUploadBtn').addEventListener('click', async () => {
+  const file = $('fVoiceFile').files[0];
+  if (!file) { alert('请先选择mp3文件'); return; }
+  $('voiceUploadBtn').disabled = true;
+  $('voiceUploadBtn').textContent = '上传中...';
+
+  try {
+    const arrayBuf = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuf);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
+    }
+    const base64 = btoa(binary);
+    const dir = currentProv ? `${currentProv.name}/${currentCat}` : 'misc';
+    const res = await fetch('/api/upload-voice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-file-name': encodeURIComponent(file.name), 'x-file-dir': encodeURIComponent(dir) },
+      body: JSON.stringify({ data: base64 })
+    });
+    const data = await res.json();
+    if (data.url) {
+      uploadedVoiceUrl = data.url;
+      $('fVoiceUrl').value = data.url;
+    } else {
+      alert('上传失败');
+    }
+  } catch (e) {
+    alert('上传失败: ' + e.message);
+  }
+  $('voiceUploadBtn').disabled = false;
+  $('voiceUploadBtn').textContent = '上传';
 });
 
 function showPreview(url) {
@@ -324,12 +369,15 @@ document.querySelectorAll('.cat-tab').forEach(t => t.addEventListener('click', (
 $('addItemBtn').addEventListener('click', () => {
   editingItem = null;
   uploadedImageUrl = '';
+  uploadedVoiceUrl = '';
   $('modalTitle').textContent = '添加条目';
   $('fName').value = '';
   $('fEnglish').value = '';
   $('fNote').value = '';
   $('fImageUrl').value = '';
   $('fImageFile').value = '';
+  $('fVoiceUrl').value = '';
+  $('fVoiceFile').value = '';
   $('fSort').value = 0;
   showPreview('');
   $('itemModal').classList.add('open');
@@ -345,6 +393,9 @@ function openEditItem(id) {
   $('fImageUrl').value = editingItem.image_url || '';
   uploadedImageUrl = editingItem.image_url || '';
   $('fImageFile').value = '';
+  $('fVoiceUrl').value = editingItem.voice_url || '';
+  uploadedVoiceUrl = editingItem.voice_url || '';
+  $('fVoiceFile').value = '';
   $('fSort').value = editingItem.sort_order;
   if (editingItem.image_url) showPreview(editingItem.image_url);
   else showPreview('');
@@ -361,6 +412,7 @@ $('modalSave').addEventListener('click', async () => {
     english: $('fEnglish').value.trim(),
     note: $('fNote').value.trim(),
     image_url: $('fImageUrl').value.trim() || uploadedImageUrl,
+    voice_url: $('fVoiceUrl').value.trim() || uploadedVoiceUrl,
     sort_order: Number($('fSort').value) || 0
   };
   if (!row.name) { alert('名称不能为空'); return; }
@@ -381,52 +433,37 @@ $('modalSave').addEventListener('click', async () => {
 
     const name = row.name;
     const en = row.english;
-    const note = row.note;
     const cat = row.category;
     const safeName = name.replace(/[/\\]/g, '_');
 
-    saveBtn.textContent = '生成语音和配图中...';
-
-    const voiceText = [name, en, note].filter(Boolean).join('，……，');
-    const catLabelMap = { animals: '特色动物', foods: '特色美食', places: '著名景点', cities: '代表城市' };
-    const catLabel = catLabelMap[cat] || '';
-    const provName = currentProv ? currentProv.full_name : '';
-    const promptMap = {
-      animals: `中国${provName}的${catLabel}${name}（${en}），${note}，在自然栖息地中，真实摄影，高清`,
-      foods: `中国${provName}的${catLabel}${name}（${en}），${note}，中餐美食特写摄影，真实摄影，高清`,
-      places: `中国${provName}的${catLabel}${name}（${en}），${note}，风景摄影，真实摄影，高清`,
-      cities: `中国${provName}的${catLabel}${name}（${en}），${note}，城市天际线，真实摄影，高清`
-    };
-    const prompt = promptMap[cat] || `中国${provName}${name}，真实摄影，高清`;
-
-    const tasks = [];
-
-    tasks.push(
-      fetch('/api/generate-voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: voiceText, filename: safeName + '.mp3', dir: 'items' })
-      }).then(r => r.json()).then(d => { if (d.url) console.log('Voice:', d.url); })
-        .catch(e => console.warn('Voice failed:', e))
-    );
+    saveBtn.textContent = '生成配图中...';
 
     if (!row.image_url) {
-      tasks.push(
-        fetch('/api/generate-image', {
+      const catLabelMap = { animals: '特色动物', foods: '特色美食', places: '著名景点', cities: '代表城市' };
+      const catLabel = catLabelMap[cat] || '';
+      const provName = currentProv ? currentProv.full_name : '';
+      const promptMap = {
+        animals: `中国${provName}的${catLabel}${name}（${en}），${row.note}，在自然栖息地中，真实摄影，高清`,
+        foods: `中国${provName}的${catLabel}${name}（${en}），${row.note}，中餐美食特写摄影，真实摄影，高清`,
+        places: `中国${provName}的${catLabel}${name}（${en}），${row.note}，风景摄影，真实摄影，高清`,
+        cities: `中国${provName}的${catLabel}${name}（${en}），${row.note}，城市天际线，真实摄影，高清`
+      };
+      const prompt = promptMap[cat] || `中国${provName}${name}，真实摄影，高清`;
+
+      try {
+        const imgRes = await fetch('/api/generate-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt, category: cat, filename: safeName })
-        }).then(r => r.json()).then(async d => {
-          if (d.url) {
-            await loadItems();
-            const latest = items.find(i => i.name === name && i.category === cat && i.province_name === row.province_name);
-            if (latest) await sb.from('items').update({ image_url: d.url }).eq('id', latest.id);
-          }
-        }).catch(e => console.warn('Image failed:', e))
-      );
+        });
+        const imgData = await imgRes.json();
+        if (imgData.url) {
+          await loadItems();
+          const latest = items.find(i => i.name === name && i.category === cat && i.province_name === row.province_name);
+          if (latest) await sb.from('items').update({ image_url: imgData.url }).eq('id', latest.id);
+        }
+      } catch (e) { console.warn('Image failed:', e); }
     }
-
-    await Promise.all(tasks);
 
     $('itemModal').classList.remove('open');
     await loadItems();
